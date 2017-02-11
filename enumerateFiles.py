@@ -10,13 +10,14 @@ enumerate and rename video files based on creation date
 from stat import S_ISREG, ST_CTIME, ST_MODE
 import os, sys, time
 
+
 # if path argument not provided then use current directory
 dirPath = sys.argv[1] if len(sys.argv) == 2 else r'.'
 
 # creates a generator that yields full filename with path
 def createGenerators():
 
-	data = (os.path.join(dirPath, f) for f in os.listdir(dirPath))
+	data = (os.path.join(os.path.abspath(dirPath), f) for f in os.listdir(dirPath))
 
 	# creates generator that yields statistics and path for each file
 	statsAndPath = ((os.stat(path), path) for path in data)
@@ -40,8 +41,9 @@ az = enumerate(filter(getMp4s, results), start=00)
 
 for i in az:
 	prefix = '{:#02d}'.format(i[0])
-	basename = (prefix + i[1][1]).replace("/", " ")
-	os.renames(i[1][1], basename)
+	basename = prefix + ". " + os.path.basename(i[1][1])
+	newFilename = os.path.abspath(dirPath) + "/" + basename
+	os.renames(i[1][1], newFilename)
 
 
 '''
