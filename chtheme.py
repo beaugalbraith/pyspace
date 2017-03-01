@@ -19,17 +19,17 @@ def undo():
     try:
         shutil.copyfile(bakPath, rcPath)
         print(bakPath + " => " + rcPath)
-        sys.exit(0)
+        os.execv('/usr/bin/zsh', ['-l'])
     except FileNotFoundError:
         print("Can't undo because no backup found")
 
 def changeTheme():
     with open(rcPath, 'r+') as rc:
-        data = rc.read().replace(getTheme(), zshtheme + '"' + sys.argv[1] + '"')
+        data = rc.read().replace(getTheme(), zshtheme + '"' + sys.argv[1] + '"' +'\n')
 
     with open(rcPath, 'w+') as rc:
         rc.write(data)
-
+    os.execv('/usr/bin/zsh', ['-l'])
 if __name__ == "__main__":
                 
     if len(sys.argv) < 2:
