@@ -1,43 +1,81 @@
 #!/usr/bin/env python3
-import os,sys,shutil
+import os
+import sys
+import shutil
+import psutil
+import re
+import subprocess
 
-zshtheme = 'ZSH_THEME='
+HOME = os.environ['HOME']
 
-home = os.environ['HOME']
-rcPath = os.path.join(home, ".zshrc")
-bakPath = rcPath + ".bak"
+class Theme(object):
+    theme = ""
+    newTheme = ""
+    bakPath = ""
+    rcPath = ""
 
-def getTheme():
-    theme = "Couldn't get current theme"
-    with open(rcPath, 'r+') as rc:
-        for l in rc.readlines():
-            if l.startswith(zshtheme):
-                theme = l
-    return theme
+    def __init__(self, shell="zsh", destination="beau"):
+        self.name = shell
+        self.newTheme = destination
+        self.get_theme()
+        if destination == "undo":
+            self.undo()
 
-def undo(): 
-    try:
-        shutil.copyfile(bakPath, rcPath)
-        print(bakPath + " => " + rcPath)
-        os.execv('/usr/bin/zsh', ['-l'])
-    except FileNotFoundError:
-        print("Can't undo because no backup found")
+    def get_theme(self):
+        if self.name == 'zsh':
+            self.rcPath = os.path.join(HOME, ".zshrc")
+            self.bakPath = self.rcPath + ".bak"
+        elif self.name == 'bash':
+            if os.path.exists(os.path.join(HOME, ".bashrc")):
+                self.rcPath = os.path.join(HOME, ".bashrc")
+                self.bakPath = self.rcPath + ".bak"
 
-def changeTheme():
-    with open(rcPath, 'r+') as rc:
-        data = rc.read().replace(getTheme(), zshtheme + '"' + sys.argv[1] + '"' +'\n')
+            else:
+                self.rcPath = os.path.join(HOME, ".bash_profile")
+                self.bakPath = self.rcPath + ".bak"
 
-    with open(rcPath, 'w+') as rc:
-        rc.write(data)
-    os.execv('/usr/bin/zsh', ['-l'])
+        with open(self.rcPath, 'r') as fd:
+            for line in fd.readlines():
+                match = re.search('THEME', line)
+                if match != None:
+                    self.theme = match.string
+
+    def change_theme(self):
+        with open(self.rcPath, 'r+') as rc:
+            data = rc.read().replace(self.theme.split("=")[1], '"' + sys.argv[1] + '"' +'\n')
+        with open(self.rcPath, 'w+') as rc:
+            rc.write(data)
+        path = subprocess.check_output(['which', self.name]).strip()
+        new = os.path.split(path)
+        os.execv(os.path.join(new[0], new[1]), ['-l'])
+
+    def undo(self):
+        try:
+            shutil.copyfile(self.bakPath, self.rcPath)
+            print(self.bakPath + " => " + self.rcPath)
+            self.get_theme()
+            print(self.theme)
+            path = subprocess.check_output(['which', self.name]).strip()
+            new = os.path.split(path)
+            os.execv(os.path.join(new[0], new[1]), ['-l'])
+        except FileNotFoundError:
+            print("Can't undo because no backup found")
+
+
 if __name__ == "__main__":
-                
+    current = Theme()
     if len(sys.argv) < 2:
         print('Usage: chtheme.py [undo] <newtheme>\n')
-        print(getTheme())
+        print(current.theme)
         sys.exit(1)
-    if sys.argv[1] == "undo":
-        undo()
+
     else:
-        shutil.copyfile(rcPath, bakPath)
-        changeTheme()
+        try:
+            shell = psutil.Process(os.getppid()).name()
+        except:
+            shell = 'zsh'
+        currentTheme = Theme(shell, sys.argv[1])
+        #print(currentTheme.theme)
+        #print(currentTheme.rcPath)
+        shutil.copyfile(currentTheme.rcPath, currentTheme.bakPath)
+        currentTheme.change_theme()
